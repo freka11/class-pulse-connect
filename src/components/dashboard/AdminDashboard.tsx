@@ -10,6 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Users, GraduationCap, BookOpen, Calendar } from 'lucide-react';
+import type { Database } from '@/integrations/supabase/types';
+
+type GenderType = Database['public']['Enums']['gender_type'];
 
 const AdminDashboard = () => {
   const [students, setStudents] = useState([]);
@@ -20,7 +23,7 @@ const AdminDashboard = () => {
     full_name: '',
     class_id: '',
     section_id: '',
-    gender: '',
+    gender: '' as GenderType,
     date_of_birth: '',
     guardian_name: '',
     guardian_contact: '',
@@ -86,7 +89,7 @@ const AdminDashboard = () => {
         full_name: '',
         class_id: '',
         section_id: '',
-        gender: '',
+        gender: '' as GenderType,
         date_of_birth: '',
         guardian_name: '',
         guardian_contact: '',
@@ -254,7 +257,7 @@ const AdminDashboard = () => {
                     <Label htmlFor="gender">Gender</Label>
                     <Select
                       value={newStudent.gender}
-                      onValueChange={(value) => setNewStudent({ ...newStudent, gender: value })}
+                      onValueChange={(value: GenderType) => setNewStudent({ ...newStudent, gender: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select gender" />

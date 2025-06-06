@@ -16,7 +16,7 @@ const TeacherDashboard = () => {
   const [attendance, setAttendance] = useState({});
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
-  const [selectedPeriod, setSelectedPeriod] = useState('1');
+  const [selectedPeriod, setSelectedPeriod] = useState(1);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
@@ -102,7 +102,7 @@ const TeacherDashboard = () => {
       class_id: selectedClass,
       section_id: selectedSection,
       date: selectedDate,
-      period: parseInt(selectedPeriod),
+      period: selectedPeriod,
       status: attendance[student.id] || 'absent',
       marked_by: user?.id
     }));
@@ -224,7 +224,7 @@ const TeacherDashboard = () => {
             
             <div>
               <label className="text-sm font-medium">Period</label>
-              <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
+              <Select value={selectedPeriod.toString()} onValueChange={(value) => setSelectedPeriod(parseInt(value))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select period" />
                 </SelectTrigger>

@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, GraduationCap, BookOpen, Calendar } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, Calendar, Edit, Plus } from 'lucide-react';
 import type { Database } from '@/integrations/supabase/types';
 
 type GenderType = Database['public']['Enums']['gender_type'];
@@ -18,6 +18,7 @@ const AdminDashboard = () => {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
+  const [editingStudent, setEditingStudent] = useState(null);
   const [newStudent, setNewStudent] = useState({
     roll_no: '',
     full_name: '',
@@ -99,6 +100,61 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleEditStudent = async (student: any) => {
+    const { error } = await supabase
+      .from('students')
+      .update({
+        class_id: student.class_id,
+        section_id: student.section_id,
+        full_name: student.full_name,
+        roll_no: student.roll_no,
+        gender: student.gender,
+        date_of_birth: student.date_of_birth,
+        guardian_name: student.guardian_name,
+        guardian_contact: student.guardian_contact,
+        address: student.address
+      })
+      .eq('id', student.id);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: 'Student updated successfully!',
+      });
+      setEditingStudent(null);
+      fetchStudents();
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    if (confirm('Are you sure you want to delete this student?')) {
+      const { error } = await supabase
+        .from('students')
+        .delete()
+        .eq('id', studentId);
+
+      if (error) {
+        toast({
+          title: 'Error',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Student deleted successfully!',
+        });
+        fetchStudents();
+      }
+    }
+  };
+
   const filteredSections = sections.filter(section => section.class_id === newStudent.class_id);
 
   return (
@@ -147,7 +203,7 @@ const AdminDashboard = () => {
 
       <Tabs defaultValue="students" className="w-full">
         <TabsList>
-          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="students">Manage Students</TabsTrigger>
           <TabsTrigger value="add-student">Add Student</TabsTrigger>
         </TabsList>
         
@@ -155,7 +211,7 @@ const AdminDashboard = () => {
           <Card>
             <CardHeader>
               <CardTitle>All Students</CardTitle>
-              <CardDescription>Manage student records</CardDescription>
+              <CardDescription>Manage student records and assignments</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -169,18 +225,127 @@ const AdminDashboard = () => {
                       <TableHead>Gender</TableHead>
                       <TableHead>Guardian</TableHead>
                       <TableHead>Contact</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {students.map((student: any) => (
                       <TableRow key={student.id}>
-                        <TableCell>{student.roll_no}</TableCell>
-                        <TableCell>{student.full_name}</TableCell>
-                        <TableCell>{student.classes?.name}</TableCell>
-                        <TableCell>{student.sections?.name}</TableCell>
-                        <TableCell className="capitalize">{student.gender}</TableCell>
-                        <TableCell>{student.guardian_name}</TableCell>
-                        <TableCell>{student.guardian_contact}</TableCell>
+                        {editingStudent?.id === student.id ? (
+                          <>
+                            <TableCell>
+                              <Input
+                                value={editingStudent.roll_no}
+                                onChange={(e) => setEditingStudent({...editingStudent, roll_no: e.target.value})}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={editingStudent.full_name}
+                                onChange={(e) => setEditingStudent({...editingStudent, full_name: e.target.value})}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={editingStudent.class_id}
+                                onValueChange={(value) => setEditingStudent({...editingStudent, class_id: value, section_id: ''})}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {classes.map((cls: any) => (
+                                    <SelectItem key={cls.id} value={cls.id}>
+                                      {cls.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={editingStudent.section_id}
+                                onValueChange={(value) => setEditingStudent({...editingStudent, section_id: value})}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {sections.filter(s => s.class_id === editingStudent.class_id).map((section: any) => (
+                                    <SelectItem key={section.id} value={section.id}>
+                                      {section.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Select
+                                value={editingStudent.gender}
+                                onValueChange={(value: GenderType) => setEditingStudent({...editingStudent, gender: value})}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="male">Male</SelectItem>
+                                  <SelectItem value="female">Female</SelectItem>
+                                  <SelectItem value="other">Other</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={editingStudent.guardian_name}
+                                onChange={(e) => setEditingStudent({...editingStudent, guardian_name: e.target.value})}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                value={editingStudent.guardian_contact}
+                                onChange={(e) => setEditingStudent({...editingStudent, guardian_contact: e.target.value})}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={() => handleEditStudent(editingStudent)}>
+                                  Save
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingStudent(null)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell>{student.roll_no}</TableCell>
+                            <TableCell>{student.full_name}</TableCell>
+                            <TableCell>{student.classes?.name}</TableCell>
+                            <TableCell>{student.sections?.name}</TableCell>
+                            <TableCell className="capitalize">{student.gender}</TableCell>
+                            <TableCell>{student.guardian_name}</TableCell>
+                            <TableCell>{student.guardian_contact}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => setEditingStudent(student)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteStudent(student.id)}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </>
+                        )}
                       </TableRow>
                     ))}
                   </TableBody>
@@ -307,6 +472,7 @@ const AdminDashboard = () => {
                   />
                 </div>
                 <Button type="submit" className="w-full">
+                  <Plus className="h-4 w-4 mr-2" />
                   Add Student
                 </Button>
               </form>

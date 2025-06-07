@@ -45,18 +45,23 @@ const TeacherDashboard = () => {
   useEffect(() => {
     fetchClasses();
     fetchPeriods();
+    fetchAllStudents();
   }, []);
 
   useEffect(() => {
     if (selectedClass && selectedSection) {
       fetchStudents();
-      if (selectedPeriods.length > 0) {
-        fetchAttendance();
-      }
+    }
+  }, [selectedClass, selectedSection]);
+
+  useEffect(() => {
+    if (selectedClass && selectedSection && selectedPeriods.length > 0) {
+      fetchAttendance();
     }
   }, [selectedClass, selectedSection, selectedDate, selectedPeriods]);
 
   const fetchPeriods = async () => {
+    console.log('Fetching periods...');
     const { data, error } = await supabase
       .from('periods')
       .select('*')
@@ -65,11 +70,13 @@ const TeacherDashboard = () => {
     if (error) {
       console.error('Error fetching periods:', error);
     } else {
+      console.log('Periods fetched:', data);
       setPeriods(data || []);
     }
   };
 
   const fetchClasses = async () => {
+    console.log('Fetching classes for teacher:', user?.id);
     const { data, error } = await supabase
       .from('sections')
       .select(`
@@ -81,6 +88,7 @@ const TeacherDashboard = () => {
     if (error) {
       console.error('Error fetching classes:', error);
     } else {
+      console.log('Sections data:', data);
       const uniqueClasses = Array.from(
         new Map(data?.map(item => [item.classes.id, item.classes]) || []).values()
       );
@@ -107,6 +115,7 @@ const TeacherDashboard = () => {
   };
 
   const fetchStudents = async () => {
+    console.log('Fetching students for class:', selectedClass, 'section:', selectedSection);
     const { data, error } = await supabase
       .from('students')
       .select('*')
@@ -117,13 +126,24 @@ const TeacherDashboard = () => {
     if (error) {
       console.error('Error fetching students:', error);
     } else {
+      console.log('Students fetched:', data);
       setStudents(data || []);
+      // Initialize attendance state for all students
+      const initialAttendance = {};
+      data?.forEach(student => {
+        initialAttendance[student.id] = {};
+        selectedPeriods.forEach(period => {
+          initialAttendance[student.id][period] = 'absent';
+        });
+      });
+      setAttendance(prev => ({ ...prev, ...initialAttendance }));
     }
   };
 
   const fetchAttendance = async () => {
     if (selectedPeriods.length === 0) return;
 
+    console.log('Fetching existing attendance for date:', selectedDate, 'periods:', selectedPeriods);
     const { data, error } = await supabase
       .from('attendance')
       .select('*')
@@ -135,18 +155,30 @@ const TeacherDashboard = () => {
     if (error) {
       console.error('Error fetching attendance:', error);
     } else {
+      console.log('Existing attendance:', data);
       const attendanceMap = {};
-      data?.forEach(record => {
-        if (!attendanceMap[record.student_id]) {
-          attendanceMap[record.student_id] = {};
-        }
-        attendanceMap[record.student_id][record.period] = record.status;
+      
+      // Initialize all students with 'absent' for selected periods
+      students.forEach(student => {
+        attendanceMap[student.id] = {};
+        selectedPeriods.forEach(period => {
+          attendanceMap[student.id][period] = 'absent';
+        });
       });
+      
+      // Update with existing attendance data
+      data?.forEach(record => {
+        if (attendanceMap[record.student_id]) {
+          attendanceMap[record.student_id][record.period] = record.status;
+        }
+      });
+      
       setAttendance(attendanceMap);
     }
   };
 
   const handleAttendanceChange = (studentId: string, period: number, status: string) => {
+    console.log('Changing attendance for student:', studentId, 'period:', period, 'status:', status);
     setAttendance(prev => ({
       ...prev,
       [studentId]: {
@@ -166,7 +198,18 @@ const TeacherDashboard = () => {
       return;
     }
 
+    if (students.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'No students found for the selected class and section',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
+      console.log('Saving attendance...');
+      
       // Delete existing attendance for these periods
       for (const period of selectedPeriods) {
         await supabase
@@ -195,6 +238,7 @@ const TeacherDashboard = () => {
         });
       });
 
+      console.log('Inserting attendance records:', attendanceRecords);
       const { error } = await supabase
         .from('attendance')
         .insert(attendanceRecords);
@@ -208,6 +252,7 @@ const TeacherDashboard = () => {
         description: `Attendance saved successfully for ${selectedPeriods.length} period(s)!`,
       });
     } catch (error: any) {
+      console.error('Error saving attendance:', error);
       toast({
         title: 'Error',
         description: error.message,
@@ -287,22 +332,10 @@ const TeacherDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchClasses();
-    fetchAllStudents();
-  }, []);
-
-  useEffect(() => {
-    if (selectedClass && selectedSection) {
-      fetchStudents();
-      fetchAttendance();
-    }
-  }, [selectedClass, selectedSection, selectedDate, selectedPeriods]);
-
   const filteredSections = sections.filter(section => section.class_id === selectedClass);
   const allFilteredSections = sections;
   
-  // Calculate present count across all selected periods
+  // Real-time calculation of present count across all selected periods
   const presentCount = students.reduce((count, student: any) => {
     const studentAttendance = attendance[student.id] || {};
     const isPresentInAnyPeriod = selectedPeriods.some(period => 
@@ -312,6 +345,9 @@ const TeacherDashboard = () => {
   }, 0);
   
   const totalStudents = students.length;
+
+  // Check if we should show the attendance interface
+  const showAttendanceInterface = selectedClass && selectedSection && selectedPeriods.length > 0 && students.length > 0;
 
   return (
     <div className="container mx-auto p-6">
@@ -418,28 +454,62 @@ const TeacherDashboard = () => {
                   </div>
                   
                   <div className="flex items-end">
-                    <Button onClick={saveAttendance} className="w-full" disabled={selectedPeriods.length === 0}>
+                    <Button 
+                      onClick={saveAttendance} 
+                      className="w-full" 
+                      disabled={!showAttendanceInterface}
+                    >
                       Save Attendance
                     </Button>
                   </div>
                 </div>
 
+                {/* Period Selector - Always show when periods are available */}
                 {periods.length > 0 && (
-                  <PeriodSelector
-                    periods={periods}
-                    selectedPeriods={selectedPeriods}
-                    onPeriodsChange={setSelectedPeriods}
-                  />
+                  <div className="mb-6">
+                    <PeriodSelector
+                      periods={periods}
+                      selectedPeriods={selectedPeriods}
+                      onPeriodsChange={setSelectedPeriods}
+                    />
+                  </div>
                 )}
 
-                {students.length > 0 && selectedPeriods.length > 0 && (
+                {/* Status Messages */}
+                {!selectedClass && (
+                  <div className="p-4 bg-blue-50 rounded-lg mb-4">
+                    <p className="text-blue-800 text-sm">Please select a class to continue.</p>
+                  </div>
+                )}
+
+                {selectedClass && !selectedSection && (
+                  <div className="p-4 bg-blue-50 rounded-lg mb-4">
+                    <p className="text-blue-800 text-sm">Please select a section to continue.</p>
+                  </div>
+                )}
+
+                {selectedClass && selectedSection && selectedPeriods.length === 0 && (
+                  <div className="p-4 bg-yellow-50 rounded-lg mb-4">
+                    <p className="text-yellow-800 text-sm">Please select at least one period to mark attendance.</p>
+                  </div>
+                )}
+
+                {selectedClass && selectedSection && students.length === 0 && selectedPeriods.length > 0 && (
+                  <div className="p-4 bg-orange-50 rounded-lg mb-4">
+                    <p className="text-orange-800 text-sm">No students found for the selected class and section.</p>
+                  </div>
+                )}
+
+                {/* Attendance Marking Interface */}
+                {showAttendanceInterface && (
                   <>
-                    <div className="mt-6 mb-4 p-4 bg-blue-50 rounded-lg">
-                      <div className="text-sm font-medium text-blue-800">
-                        Attendance for {selectedPeriods.length} period(s): {presentCount} students present out of {totalStudents}
+                    <div className="mb-4 p-4 bg-green-50 rounded-lg">
+                      <div className="text-sm font-medium text-green-800">
+                        Marking attendance for {selectedPeriods.length} period(s): {presentCount} students present out of {totalStudents}
                         {totalStudents > 0 && ` (${Math.round((presentCount / totalStudents) * 100)}%)`}
                       </div>
                     </div>
+                    
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
@@ -456,7 +526,7 @@ const TeacherDashboard = () => {
                         <TableBody>
                           {students.map((student: any) => (
                             <TableRow key={student.id}>
-                              <TableCell>{student.roll_no}</TableCell>
+                              <TableCell className="font-medium">{student.roll_no}</TableCell>
                               <TableCell>{student.full_name}</TableCell>
                               {selectedPeriods.map(period => (
                                 <TableCell key={period} className="text-center">
@@ -468,7 +538,7 @@ const TeacherDashboard = () => {
                                           checked && handleAttendanceChange(student.id, period, 'present')
                                         }
                                       />
-                                      <span className="text-xs">P</span>
+                                      <span className="text-xs text-green-600">P</span>
                                     </div>
                                     <div className="flex items-center space-x-1">
                                       <Checkbox
@@ -477,7 +547,7 @@ const TeacherDashboard = () => {
                                           checked && handleAttendanceChange(student.id, period, 'absent')
                                         }
                                       />
-                                      <span className="text-xs">A</span>
+                                      <span className="text-xs text-red-600">A</span>
                                     </div>
                                     <div className="flex items-center space-x-1">
                                       <Checkbox
@@ -486,7 +556,7 @@ const TeacherDashboard = () => {
                                           checked && handleAttendanceChange(student.id, period, 'late')
                                         }
                                       />
-                                      <span className="text-xs">L</span>
+                                      <span className="text-xs text-yellow-600">L</span>
                                     </div>
                                   </div>
                                 </TableCell>

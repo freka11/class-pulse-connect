@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -12,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar, Users, CheckCircle, XCircle, Clock, Edit, Plus } from 'lucide-react';
+import PeriodSelector from './PeriodSelector';
 import type { Database } from '@/integrations/supabase/types';
 
 type GenderType = Database['public']['Enums']['gender_type'];
@@ -22,10 +22,11 @@ const TeacherDashboard = () => {
   const [attendance, setAttendance] = useState({});
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
-  const [selectedPeriod, setSelectedPeriod] = useState(1);
+  const [selectedPeriods, setSelectedPeriods] = useState<number[]>([]);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
+  const [periods, setPeriods] = useState([]);
   const [editingStudent, setEditingStudent] = useState(null);
   const [newStudent, setNewStudent] = useState({
     roll_no: '',
@@ -43,14 +44,30 @@ const TeacherDashboard = () => {
 
   useEffect(() => {
     fetchClasses();
+    fetchPeriods();
   }, []);
 
   useEffect(() => {
     if (selectedClass && selectedSection) {
       fetchStudents();
-      fetchAttendance();
+      if (selectedPeriods.length > 0) {
+        fetchAttendance();
+      }
     }
-  }, [selectedClass, selectedSection, selectedDate, selectedPeriod]);
+  }, [selectedClass, selectedSection, selectedDate, selectedPeriods]);
+
+  const fetchPeriods = async () => {
+    const { data, error } = await supabase
+      .from('periods')
+      .select('*')
+      .order('period_number');
+    
+    if (error) {
+      console.error('Error fetching periods:', error);
+    } else {
+      setPeriods(data || []);
+    }
+  };
 
   const fetchClasses = async () => {
     const { data, error } = await supabase
@@ -105,67 +122,96 @@ const TeacherDashboard = () => {
   };
 
   const fetchAttendance = async () => {
+    if (selectedPeriods.length === 0) return;
+
     const { data, error } = await supabase
       .from('attendance')
       .select('*')
       .eq('class_id', selectedClass)
       .eq('section_id', selectedSection)
       .eq('date', selectedDate)
-      .eq('period', selectedPeriod);
+      .in('period', selectedPeriods);
     
     if (error) {
       console.error('Error fetching attendance:', error);
     } else {
       const attendanceMap = {};
       data?.forEach(record => {
-        attendanceMap[record.student_id] = record.status;
+        if (!attendanceMap[record.student_id]) {
+          attendanceMap[record.student_id] = {};
+        }
+        attendanceMap[record.student_id][record.period] = record.status;
       });
       setAttendance(attendanceMap);
     }
   };
 
-  const handleAttendanceChange = (studentId: string, status: string) => {
+  const handleAttendanceChange = (studentId: string, period: number, status: string) => {
     setAttendance(prev => ({
       ...prev,
-      [studentId]: status
+      [studentId]: {
+        ...prev[studentId],
+        [period]: status
+      }
     }));
   };
 
   const saveAttendance = async () => {
-    const attendanceRecords = students.map((student: any) => ({
-      student_id: student.id,
-      class_id: selectedClass,
-      section_id: selectedSection,
-      date: selectedDate,
-      period: selectedPeriod,
-      status: attendance[student.id] || 'absent',
-      marked_by: user?.id
-    }));
+    if (selectedPeriods.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please select at least one period',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-    // Delete existing attendance for this period
-    await supabase
-      .from('attendance')
-      .delete()
-      .eq('class_id', selectedClass)
-      .eq('section_id', selectedSection)
-      .eq('date', selectedDate)
-      .eq('period', selectedPeriod);
+    try {
+      // Delete existing attendance for these periods
+      for (const period of selectedPeriods) {
+        await supabase
+          .from('attendance')
+          .delete()
+          .eq('class_id', selectedClass)
+          .eq('section_id', selectedSection)
+          .eq('date', selectedDate)
+          .eq('period', period);
+      }
 
-    // Insert new attendance
-    const { error } = await supabase
-      .from('attendance')
-      .insert(attendanceRecords);
+      // Insert new attendance records
+      const attendanceRecords = [];
+      students.forEach((student: any) => {
+        selectedPeriods.forEach(period => {
+          const status = attendance[student.id]?.[period] || 'absent';
+          attendanceRecords.push({
+            student_id: student.id,
+            class_id: selectedClass,
+            section_id: selectedSection,
+            date: selectedDate,
+            period: period,
+            status: status,
+            marked_by: user?.id
+          });
+        });
+      });
 
-    if (error) {
+      const { error } = await supabase
+        .from('attendance')
+        .insert(attendanceRecords);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: 'Success',
+        description: `Attendance saved successfully for ${selectedPeriods.length} period(s)!`,
+      });
+    } catch (error: any) {
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Success',
-        description: 'Attendance saved successfully!',
       });
     }
   };
@@ -251,11 +297,20 @@ const TeacherDashboard = () => {
       fetchStudents();
       fetchAttendance();
     }
-  }, [selectedClass, selectedSection, selectedDate, selectedPeriod]);
+  }, [selectedClass, selectedSection, selectedDate, selectedPeriods]);
 
   const filteredSections = sections.filter(section => section.class_id === selectedClass);
   const allFilteredSections = sections;
-  const presentCount = Object.values(attendance).filter(status => status === 'present').length;
+  
+  // Calculate present count across all selected periods
+  const presentCount = students.reduce((count, student: any) => {
+    const studentAttendance = attendance[student.id] || {};
+    const isPresentInAnyPeriod = selectedPeriods.some(period => 
+      studentAttendance[period] === 'present'
+    );
+    return count + (isPresentInAnyPeriod ? 1 : 0);
+  }, 0);
+  
   const totalStudents = students.length;
 
   return (
@@ -295,11 +350,11 @@ const TeacherDashboard = () => {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today's Date</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Selected Periods</CardTitle>
+            <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">{new Date().toLocaleDateString()}</div>
+            <div className="text-2xl font-bold">{selectedPeriods.length}</div>
           </CardContent>
         </Card>
       </div>
@@ -312,135 +367,140 @@ const TeacherDashboard = () => {
         </TabsList>
 
         <TabsContent value="attendance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mark Attendance</CardTitle>
-              <CardDescription>Select class, section, and period to mark attendance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-                <div>
-                  <label className="text-sm font-medium">Class</label>
-                  <Select value={selectedClass} onValueChange={setSelectedClass}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map((cls: any) => (
-                        <SelectItem key={cls.id} value={cls.id}>
-                          {cls.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Section</label>
-                  <Select value={selectedSection} onValueChange={setSelectedSection}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select section" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filteredSections.map((section: any) => (
-                        <SelectItem key={section.id} value={section.id}>
-                          {section.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Period</label>
-                  <Select value={selectedPeriod.toString()} onValueChange={(value) => setSelectedPeriod(parseInt(value))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select period" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[1, 2, 3, 4, 5, 6, 7].map(period => (
-                        <SelectItem key={period} value={period.toString()}>
-                          Period {period}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <label className="text-sm font-medium">Date</label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
-                
-                <div className="flex items-end">
-                  <Button onClick={saveAttendance} className="w-full">
-                    Save Attendance
-                  </Button>
-                </div>
-              </div>
-
-              {students.length > 0 && (
-                <>
-                  <div className="mb-4 p-4 bg-blue-50 rounded-lg">
-                    <div className="text-sm font-medium text-blue-800">
-                      Attendance Summary: {presentCount} present out of {totalStudents} students
-                      {totalStudents > 0 && ` (${Math.round((presentCount / totalStudents) * 100)}%)`}
-                    </div>
-                  </div>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Roll No</TableHead>
-                          <TableHead>Student Name</TableHead>
-                          <TableHead>Present</TableHead>
-                          <TableHead>Absent</TableHead>
-                          <TableHead>Late</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {students.map((student: any) => (
-                          <TableRow key={student.id}>
-                            <TableCell>{student.roll_no}</TableCell>
-                            <TableCell>{student.full_name}</TableCell>
-                            <TableCell>
-                              <Checkbox
-                                checked={attendance[student.id] === 'present'}
-                                onCheckedChange={(checked) => 
-                                  checked && handleAttendanceChange(student.id, 'present')
-                                }
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Checkbox
-                                checked={attendance[student.id] === 'absent'}
-                                onCheckedChange={(checked) => 
-                                  checked && handleAttendanceChange(student.id, 'absent')
-                                }
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Checkbox
-                                checked={attendance[student.id] === 'late'}
-                                onCheckedChange={(checked) => 
-                                  checked && handleAttendanceChange(student.id, 'late')
-                                }
-                              />
-                            </TableCell>
-                          </TableRow>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Mark Attendance</CardTitle>
+                <CardDescription>Select class, section, periods, and date to mark attendance</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div>
+                    <label className="text-sm font-medium">Class</label>
+                    <Select value={selectedClass} onValueChange={setSelectedClass}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select class" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {classes.map((cls: any) => (
+                          <SelectItem key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </SelectItem>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </SelectContent>
+                    </Select>
                   </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                  
+                  <div>
+                    <label className="text-sm font-medium">Section</label>
+                    <Select value={selectedSection} onValueChange={setSelectedSection}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select section" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredSections.map((section: any) => (
+                          <SelectItem key={section.id} value={section.id}>
+                            {section.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <label className="text-sm font-medium">Date</label>
+                    <input
+                      type="date"
+                      value={selectedDate}
+                      onChange={(e) => setSelectedDate(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                  
+                  <div className="flex items-end">
+                    <Button onClick={saveAttendance} className="w-full" disabled={selectedPeriods.length === 0}>
+                      Save Attendance
+                    </Button>
+                  </div>
+                </div>
+
+                {periods.length > 0 && (
+                  <PeriodSelector
+                    periods={periods}
+                    selectedPeriods={selectedPeriods}
+                    onPeriodsChange={setSelectedPeriods}
+                  />
+                )}
+
+                {students.length > 0 && selectedPeriods.length > 0 && (
+                  <>
+                    <div className="mt-6 mb-4 p-4 bg-blue-50 rounded-lg">
+                      <div className="text-sm font-medium text-blue-800">
+                        Attendance for {selectedPeriods.length} period(s): {presentCount} students present out of {totalStudents}
+                        {totalStudents > 0 && ` (${Math.round((presentCount / totalStudents) * 100)}%)`}
+                      </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Roll No</TableHead>
+                            <TableHead>Student Name</TableHead>
+                            {selectedPeriods.map(period => (
+                              <TableHead key={period} className="text-center">
+                                Period {period}
+                              </TableHead>
+                            ))}
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {students.map((student: any) => (
+                            <TableRow key={student.id}>
+                              <TableCell>{student.roll_no}</TableCell>
+                              <TableCell>{student.full_name}</TableCell>
+                              {selectedPeriods.map(period => (
+                                <TableCell key={period} className="text-center">
+                                  <div className="flex justify-center gap-2">
+                                    <div className="flex items-center space-x-1">
+                                      <Checkbox
+                                        checked={attendance[student.id]?.[period] === 'present'}
+                                        onCheckedChange={(checked) => 
+                                          checked && handleAttendanceChange(student.id, period, 'present')
+                                        }
+                                      />
+                                      <span className="text-xs">P</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <Checkbox
+                                        checked={attendance[student.id]?.[period] === 'absent'}
+                                        onCheckedChange={(checked) => 
+                                          checked && handleAttendanceChange(student.id, period, 'absent')
+                                        }
+                                      />
+                                      <span className="text-xs">A</span>
+                                    </div>
+                                    <div className="flex items-center space-x-1">
+                                      <Checkbox
+                                        checked={attendance[student.id]?.[period] === 'late'}
+                                        onCheckedChange={(checked) => 
+                                          checked && handleAttendanceChange(student.id, period, 'late')
+                                        }
+                                      />
+                                      <span className="text-xs">L</span>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="students">

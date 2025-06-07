@@ -18,6 +18,7 @@ export type Database = {
           marked_by: string | null
           notes: string | null
           period: number
+          periods: number[] | null
           section_id: string | null
           status: Database["public"]["Enums"]["attendance_status"]
           student_id: string | null
@@ -31,6 +32,7 @@ export type Database = {
           marked_by?: string | null
           notes?: string | null
           period: number
+          periods?: number[] | null
           section_id?: string | null
           status: Database["public"]["Enums"]["attendance_status"]
           student_id?: string | null
@@ -44,6 +46,7 @@ export type Database = {
           marked_by?: string | null
           notes?: string | null
           period?: number
+          periods?: number[] | null
           section_id?: string | null
           status?: Database["public"]["Enums"]["attendance_status"]
           student_id?: string | null
@@ -101,6 +104,33 @@ export type Database = {
           id?: string
           name?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      periods: {
+        Row: {
+          created_at: string | null
+          end_time: string | null
+          id: number
+          name: string
+          period_number: number
+          start_time: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_time?: string | null
+          id?: number
+          name: string
+          period_number: number
+          start_time?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_time?: string | null
+          id?: number
+          name?: string
+          period_number?: number
+          start_time?: string | null
         }
         Relationships: []
       }
@@ -254,6 +284,18 @@ export type Database = {
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      mark_attendance_for_periods: {
+        Args: {
+          student_ids: string[]
+          class_id_param: string
+          section_id_param: string
+          date_param: string
+          periods_param: number[]
+          status_param: Database["public"]["Enums"]["attendance_status"]
+          marked_by_param: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

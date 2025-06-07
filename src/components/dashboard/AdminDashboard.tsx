@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, GraduationCap, BookOpen, Calendar, Edit, Plus } from 'lucide-react';
+import { Users, GraduationCap, BookOpen, Calendar, Edit, Plus, Settings } from 'lucide-react';
+import ClassSectionManager from './ClassSectionManager';
 import type { Database } from '@/integrations/supabase/types';
 
 type GenderType = Database['public']['Enums']['gender_type'];
@@ -205,6 +205,7 @@ const AdminDashboard = () => {
         <TabsList>
           <TabsTrigger value="students">Manage Students</TabsTrigger>
           <TabsTrigger value="add-student">Add Student</TabsTrigger>
+          <TabsTrigger value="classes-sections">Classes & Sections</TabsTrigger>
         </TabsList>
         
         <TabsContent value="students">
@@ -476,6 +477,23 @@ const AdminDashboard = () => {
                   Add Student
                 </Button>
               </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="classes-sections">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Classes & Sections Management
+              </CardTitle>
+              <CardDescription>
+                Manage school classes, sections, and teacher assignments
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ClassSectionManager />
             </CardContent>
           </Card>
         </TabsContent>

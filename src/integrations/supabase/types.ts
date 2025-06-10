@@ -18,10 +18,9 @@ export type Database = {
           marked_by: string | null
           notes: string | null
           period: number
-          periods: number[] | null
           section_id: string | null
           status: Database["public"]["Enums"]["attendance_status"]
-          student_id: string | null
+          student_id: string
           updated_at: string | null
         }
         Insert: {
@@ -32,10 +31,9 @@ export type Database = {
           marked_by?: string | null
           notes?: string | null
           period: number
-          periods?: number[] | null
           section_id?: string | null
           status: Database["public"]["Enums"]["attendance_status"]
-          student_id?: string | null
+          student_id: string
           updated_at?: string | null
         }
         Update: {
@@ -46,10 +44,9 @@ export type Database = {
           marked_by?: string | null
           notes?: string | null
           period?: number
-          periods?: number[] | null
           section_id?: string | null
           status?: Database["public"]["Enums"]["attendance_status"]
-          student_id?: string | null
+          student_id?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -281,6 +278,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]

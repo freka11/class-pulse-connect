@@ -59,17 +59,19 @@ const ClassSectionSelector: React.FC<ClassSectionSelectorProps> = ({
         <Label htmlFor="class-select">Class</Label>
         <Select value={selectedClass} onValueChange={handleClassChange}>
           <SelectTrigger id="class-select">
-            <SelectValue placeholder="Select a class" />
+            <SelectValue placeholder={classesLoading ? "Loading classes..." : "Select a class"} />
           </SelectTrigger>
           <SelectContent>
             {classesLoading ? (
-              <SelectItem value="" disabled>Loading classes...</SelectItem>
-            ) : (
-              classes?.map((cls) => (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading classes...</div>
+            ) : classes && classes.length > 0 ? (
+              classes.map((cls) => (
                 <SelectItem key={cls.id} value={cls.id}>
                   {cls.name}
                 </SelectItem>
               ))
+            ) : (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">No classes available</div>
             )}
           </SelectContent>
         </Select>
@@ -79,19 +81,25 @@ const ClassSectionSelector: React.FC<ClassSectionSelectorProps> = ({
         <Label htmlFor="section-select">Section</Label>
         <Select value={selectedSection} onValueChange={onSectionChange} disabled={!selectedClass}>
           <SelectTrigger id="section-select">
-            <SelectValue placeholder="Select a section" />
+            <SelectValue placeholder={
+              !selectedClass 
+                ? "Select a class first" 
+                : sectionsLoading 
+                  ? "Loading sections..." 
+                  : "Select a section"
+            } />
           </SelectTrigger>
           <SelectContent>
             {sectionsLoading ? (
-              <SelectItem value="" disabled>Loading sections...</SelectItem>
-            ) : sections?.length === 0 ? (
-              <SelectItem value="" disabled>No sections available</SelectItem>
-            ) : (
-              sections?.map((section) => (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">Loading sections...</div>
+            ) : sections && sections.length > 0 ? (
+              sections.map((section) => (
                 <SelectItem key={section.id} value={section.id}>
                   {section.name}
                 </SelectItem>
               ))
+            ) : (
+              <div className="px-2 py-1.5 text-sm text-muted-foreground">No sections available</div>
             )}
           </SelectContent>
         </Select>

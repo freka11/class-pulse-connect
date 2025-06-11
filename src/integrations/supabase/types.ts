@@ -54,6 +54,13 @@ export type Database = {
             foreignKeyName: "attendance_class_id_fkey"
             columns: ["class_id"]
             isOneToOne: false
+            referencedRelation: "attendance_statistics"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "attendance_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
             referencedRelation: "classes"
             referencedColumns: ["id"]
           },
@@ -63,6 +70,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_statistics"
+            referencedColumns: ["section_id"]
           },
           {
             foreignKeyName: "attendance_section_id_fkey"
@@ -191,6 +205,13 @@ export type Database = {
             foreignKeyName: "sections_class_id_fkey"
             columns: ["class_id"]
             isOneToOne: false
+            referencedRelation: "attendance_statistics"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "sections_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
             referencedRelation: "classes"
             referencedColumns: ["id"]
           },
@@ -254,8 +275,22 @@ export type Database = {
             foreignKeyName: "students_class_id_fkey"
             columns: ["class_id"]
             isOneToOne: false
+            referencedRelation: "attendance_statistics"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "students_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
             referencedRelation: "classes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "students_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_statistics"
+            referencedColumns: ["section_id"]
           },
           {
             foreignKeyName: "students_section_id_fkey"
@@ -275,9 +310,50 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      attendance_statistics: {
+        Row: {
+          absent_count: number | null
+          attendance_percentage: number | null
+          class_id: string | null
+          class_name: string | null
+          late_count: number | null
+          present_count: number | null
+          section_id: string | null
+          section_name: string | null
+          students_with_attendance: number | null
+          total_attendance_records: number | null
+          total_students: number | null
+        }
+        Relationships: []
+      }
+      institution_statistics: {
+        Row: {
+          overall_attendance_percentage: number | null
+          total_absent: number | null
+          total_attendance_records: number | null
+          total_late: number | null
+          total_present: number | null
+          total_students: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      get_attendance_report: {
+        Args: { start_date?: string; end_date?: string; class_filter?: string }
+        Returns: {
+          class_id: string
+          class_name: string
+          section_id: string
+          section_name: string
+          total_students: number
+          total_attendance_records: number
+          present_count: number
+          absent_count: number
+          late_count: number
+          attendance_percentage: number
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: Database["public"]["Enums"]["user_role"]

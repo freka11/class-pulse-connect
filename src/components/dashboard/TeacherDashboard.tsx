@@ -3,6 +3,7 @@ import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Users, CheckSquare, FileText } from 'lucide-react';
 import AttendanceReportPage from '../reports/AttendanceReportPage';
+import AttendanceMarkingPage from '../attendance/AttendanceMarkingPage';
 
 const TeacherDashboard = () => {
   return (
@@ -43,9 +44,7 @@ const TeacherDashboard = () => {
         </TabsContent>
 
         <TabsContent value="attendance">
-          <div className="text-center py-8 text-muted-foreground">
-            Attendance marking functionality coming soon...
-          </div>
+          <AttendanceMarkingPage />
         </TabsContent>
 
         <TabsContent value="students">

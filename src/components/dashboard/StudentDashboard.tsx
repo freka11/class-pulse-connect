@@ -1,12 +1,12 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar, CheckCircle, XCircle, Clock, User, AlertCircle } from 'lucide-react';
+import { Calendar, CheckCircle, XCircle, Clock, User, AlertCircle, List } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import StudentTimetable from './StudentTimetable';
 
 interface Student {
   id: string;
@@ -188,6 +188,13 @@ const StudentDashboard = () => {
     }
   };
 
+  // Get today's attendance record
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayAttendance = attendanceRecords.find((r) => r.date === todayStr);
+
+  // Cards breakdown
+  const workingDays = attendanceStats.total; // Assuming each attendance record is for a day; can be refactored for "academic year" logic.
+
   if (loading) {
     return (
       <div className="container mx-auto p-6">
@@ -224,6 +231,28 @@ const StudentDashboard = () => {
 
   return (
     <div className="container mx-auto p-6">
+      {/* Daily Attendance Banner */}
+      <div className="mb-6">
+        <div className="rounded-lg p-4 flex items-center gap-4 bg-blue-50 border border-blue-100">
+          {todayAttendance ? (
+            <>
+              {getStatusIcon(todayAttendance.status)}
+              <span className="font-medium text-lg">
+                Today's Attendance: <span className={`capitalize ${getStatusColor(todayAttendance.status)}`}>{todayAttendance.status}</span>
+              </span>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="h-5 w-5 text-yellow-500" />
+              <span className="font-medium text-lg text-yellow-700">
+                You have not been marked for today yet.
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Student Profile */}
       <Card className="mb-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -263,58 +292,52 @@ const StudentDashboard = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+      {/* Attendance Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Attendance %</CardTitle>
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{attendanceStats.percentage}%</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Present</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Present</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{attendanceStats.present}</div>
           </CardContent>
         </Card>
-        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Absent</CardTitle>
-            <XCircle className="h-4 w-4 text-red-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{attendanceStats.absent}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Late</CardTitle>
-            <Clock className="h-4 w-4 text-yellow-600" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{attendanceStats.late}</div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Days</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{attendanceStats.total}</div>
+            <div className="text-2xl font-bold">{workingDays}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Attendance %</CardTitle>
+            <ChartBar className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{attendanceStats.percentage}%</div>
           </CardContent>
         </Card>
       </div>
 
+      {/* Timetable Access */}
+      <Card className="mb-8">
+        <CardHeader className="flex flex-row items-center gap-3">
+          <List className="h-5 w-5" />
+          <CardTitle>Class Timetable</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StudentTimetable
+            classId={studentInfo.classes?.name ? studentInfo.classes.name : ''}
+            sectionId={studentInfo.sections?.name ? studentInfo.sections.name : ''}
+          />
+        </CardContent>
+      </Card>
+
+      {/* Attendance history table */}
       <Card>
         <CardHeader>
           <CardTitle>Attendance History</CardTitle>

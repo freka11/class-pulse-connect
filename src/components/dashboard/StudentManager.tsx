@@ -13,6 +13,8 @@ import { Plus, Edit, Trash2, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 
+type GenderType = 'male' | 'female' | 'other';
+
 const StudentManager = () => {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
@@ -21,7 +23,7 @@ const StudentManager = () => {
     full_name: '',
     roll_no: '',
     date_of_birth: '',
-    gender: '',
+    gender: '' as GenderType | '',
     guardian_name: '',
     guardian_contact: '',
     address: '',
@@ -87,9 +89,28 @@ const StudentManager = () => {
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!newStudent.gender) {
+      toast({
+        title: 'Error',
+        description: 'Please select a gender',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from('students')
-      .insert([newStudent]);
+      .insert([{
+        full_name: newStudent.full_name,
+        roll_no: newStudent.roll_no,
+        date_of_birth: newStudent.date_of_birth,
+        gender: newStudent.gender as GenderType,
+        guardian_name: newStudent.guardian_name,
+        guardian_contact: newStudent.guardian_contact,
+        address: newStudent.address,
+        class_id: newStudent.class_id,
+        section_id: newStudent.section_id
+      }]);
     
     if (error) {
       toast({
@@ -230,7 +251,7 @@ const StudentManager = () => {
                   <Label htmlFor="gender">Gender</Label>
                   <Select
                     value={newStudent.gender}
-                    onValueChange={(value) => setNewStudent({ ...newStudent, gender: value })}
+                    onValueChange={(value: GenderType) => setNewStudent({ ...newStudent, gender: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />

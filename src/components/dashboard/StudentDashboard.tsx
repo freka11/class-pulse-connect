@@ -9,7 +9,7 @@ import StudentTimetable from './StudentTimetable';
 
 const StudentDashboard = () => {
   const { profile } = useProfile();
-  const { studentData, attendanceData, loading } = useStudentData();
+  const { student, attendanceRecords, loading } = useStudentData();
 
   if (loading) {
     return (
@@ -19,7 +19,7 @@ const StudentDashboard = () => {
     );
   }
 
-  if (!studentData) {
+  if (!student) {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center py-8 text-muted-foreground">
@@ -30,23 +30,23 @@ const StudentDashboard = () => {
   }
 
   // Calculate attendance statistics
-  const totalDays = attendanceData.length;
-  const presentDays = attendanceData.filter(record => record.status === 'present').length;
-  const absentDays = attendanceData.filter(record => record.status === 'absent').length;
-  const lateDays = attendanceData.filter(record => record.status === 'late').length;
+  const totalDays = attendanceRecords.length;
+  const presentDays = attendanceRecords.filter(record => record.status === 'present').length;
+  const absentDays = attendanceRecords.filter(record => record.status === 'absent').length;
+  const lateDays = attendanceRecords.filter(record => record.status === 'late').length;
   const attendancePercentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
 
   // Get recent attendance (last 7 days)
-  const recentAttendance = attendanceData
+  const recentAttendance = attendanceRecords
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 7);
 
   return (
     <div className="container mx-auto p-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Welcome, {studentData.full_name}</h1>
+        <h1 className="text-3xl font-bold mb-2">Welcome, {student.full_name}</h1>
         <p className="text-muted-foreground">
-          Class {studentData.classes?.name} - Section {studentData.sections?.name}
+          Class {student.classes?.name} - Section {student.sections?.name}
         </p>
       </div>
 
@@ -150,11 +150,11 @@ const StudentDashboard = () => {
               <CardDescription>Complete record of your attendance</CardDescription>
             </CardHeader>
             <CardContent>
-              {attendanceData.length === 0 ? (
+              {attendanceRecords.length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No attendance records found</p>
               ) : (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {attendanceData
+                  {attendanceRecords
                     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                     .map((record, index) => (
                       <div key={index} className="flex justify-between items-center p-3 rounded border">
@@ -185,8 +185,8 @@ const StudentDashboard = () => {
             </CardHeader>
             <CardContent>
               <StudentTimetable 
-                classId={studentData.class_id || ''} 
-                sectionId={studentData.section_id || ''} 
+                classId={student.class_id || ''} 
+                sectionId={student.section_id || ''} 
               />
             </CardContent>
           </Card>

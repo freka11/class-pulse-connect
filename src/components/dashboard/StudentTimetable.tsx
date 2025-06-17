@@ -5,17 +5,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Calendar } from "lucide-react";
 
-// If/when you create a dedicated "timetable" table replace this logic.
 interface TimetableEntry {
   id: string;
   period_number: number;
-  name: string; // subject or period name
+  name: string;
   start_time: string;
   end_time: string;
 }
 
 interface StudentTimetableProps {
-  classId: string;    // in this app the class/section "name" is used
+  classId: string;
   sectionId: string;
 }
 
@@ -25,7 +24,6 @@ const StudentTimetable: React.FC<StudentTimetableProps> = ({ classId, sectionId 
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Dummy logic: show periods from periods table by period_number and name.
     const fetchTimetable = async () => {
       setError(null);
       setLoading(true);
@@ -36,7 +34,17 @@ const StudentTimetable: React.FC<StudentTimetableProps> = ({ classId, sectionId 
           .order('period_number', { ascending: true });
 
         if (error) throw error;
-        setTimetable(data || []);
+        
+        // Convert the data to match our interface
+        const formattedData: TimetableEntry[] = (data || []).map(item => ({
+          id: item.id.toString(),
+          period_number: item.period_number,
+          name: item.name,
+          start_time: item.start_time || '',
+          end_time: item.end_time || ''
+        }));
+        
+        setTimetable(formattedData);
       } catch (err) {
         setError("Unable to load timetable. Please try again later.");
       } finally {
@@ -47,6 +55,7 @@ const StudentTimetable: React.FC<StudentTimetableProps> = ({ classId, sectionId 
   }, [classId, sectionId]);
 
   if (loading) return <div className="py-4 text-center">Loading timetable...</div>;
+  
   if (error) {
     return (
       <Alert variant="destructive" className="mb-4">
@@ -55,6 +64,7 @@ const StudentTimetable: React.FC<StudentTimetableProps> = ({ classId, sectionId 
       </Alert>
     );
   }
+  
   if (!timetable.length) {
     return (
       <div className="py-4 text-center text-muted-foreground">
@@ -62,6 +72,7 @@ const StudentTimetable: React.FC<StudentTimetableProps> = ({ classId, sectionId 
       </div>
     );
   }
+  
   return (
     <div className="overflow-x-auto">
       <Table>

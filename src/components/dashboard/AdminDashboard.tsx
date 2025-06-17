@@ -1,8 +1,9 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Users, GraduationCap, FileText, CheckSquare } from 'lucide-react';
+import { BarChart, Users, GraduationCap, FileText, CheckSquare, UserPlus } from 'lucide-react';
 import ClassSectionManager from './ClassSectionManager';
+import StudentManager from './StudentManager';
 import AttendanceReportPage from '../reports/AttendanceReportPage';
 import AttendanceMarkingPage from '../attendance/AttendanceMarkingPage';
 
@@ -17,7 +18,7 @@ const AdminDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
             Overview
@@ -33,6 +34,10 @@ const AdminDashboard = () => {
           <TabsTrigger value="classes" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
             Classes
+          </TabsTrigger>
+          <TabsTrigger value="students" className="flex items-center gap-2">
+            <UserPlus className="h-4 w-4" />
+            Students
           </TabsTrigger>
           <TabsTrigger value="users" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
@@ -54,6 +59,10 @@ const AdminDashboard = () => {
 
         <TabsContent value="classes">
           <ClassSectionManager />
+        </TabsContent>
+
+        <TabsContent value="students">
+          <StudentManager />
         </TabsContent>
 
         <TabsContent value="users">

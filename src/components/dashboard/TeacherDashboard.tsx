@@ -1,7 +1,8 @@
 
 import React from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart, Users, CheckSquare, FileText } from 'lucide-react';
+import { BarChart, Users, CheckSquare, FileText, UserPlus } from 'lucide-react';
+import StudentManager from './StudentManager';
 import AttendanceReportPage from '../reports/AttendanceReportPage';
 import AttendanceMarkingPage from '../attendance/AttendanceMarkingPage';
 
@@ -16,7 +17,7 @@ const TeacherDashboard = () => {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview" className="flex items-center gap-2">
             <BarChart className="h-4 w-4" />
             Overview
@@ -30,8 +31,12 @@ const TeacherDashboard = () => {
             Mark Attendance
           </TabsTrigger>
           <TabsTrigger value="students" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
+            <UserPlus className="h-4 w-4" />
             Students
+          </TabsTrigger>
+          <TabsTrigger value="classes" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            My Classes
           </TabsTrigger>
         </TabsList>
 
@@ -48,8 +53,12 @@ const TeacherDashboard = () => {
         </TabsContent>
 
         <TabsContent value="students">
+          <StudentManager />
+        </TabsContent>
+
+        <TabsContent value="classes">
           <div className="text-center py-8 text-muted-foreground">
-            Student management functionality coming soon...
+            Class information display coming soon...
           </div>
         </TabsContent>
       </Tabs>

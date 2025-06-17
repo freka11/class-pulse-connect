@@ -11,6 +11,8 @@ interface Student {
   date_of_birth: string;
   guardian_name: string;
   guardian_contact: string;
+  class_id: string | null;
+  section_id: string | null;
   classes?: { name: string };
   sections?: { name: string };
 }
